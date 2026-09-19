@@ -1,0 +1,20 @@
+name: L3 live validation
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    name: l3 validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch exact synthetic fixture
+        run: |
+          git init fixture
+          cd fixture
+          git remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          git fetch --depth=1 origin "$GITHUB_SHA"
+          git show FETCH_HEAD:case.txt > case.txt
+          test "$(cat case.txt)" != FAIL
