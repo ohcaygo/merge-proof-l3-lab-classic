@@ -7,7 +7,7 @@ case "$TASK_OUTPUT" in /*) ;; *) exit 2 ;; esac
 apk add --no-cache build-base curl ca-certificates xz file pkgconf zlib-dev zlib-static \
   curl-dev curl-static openssl-dev openssl-libs-static brotli-dev brotli-static \
   zstd-dev zstd-static nghttp2-dev nghttp2-static libidn2-dev libidn2-static \
-  libpsl-dev libpsl-static libunistring-dev libunistring-static c-ares-dev c-ares-static
+  libpsl-dev libpsl-static libunistring-dev libunistring-static c-ares-dev
 TASK_BUILD=$(mktemp -d)
 trap 'rm -rf "$TASK_BUILD"' EXIT
 mkdir -p "$TASK_OUTPUT"
