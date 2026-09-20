@@ -1,0 +1,62 @@
+name: Exact L3 addendum candidate acceptance
+on:
+  push:
+    branches: [l3-addendum-validation-7492959]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  complete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Fetch the owned fixture and verify exact candidate archive
+        run: |
+          git init fixture
+          git -C fixture remote add origin https://github.com/ohcaygo/merge-proof-l3-lab-classic.git
+          git -C fixture fetch --depth=1 origin "$GITHUB_SHA"
+          git -C fixture checkout --detach FETCH_HEAD
+          echo '6fec0b2f3658df0581202773613e2d319f032464ed9ea216c180f9fe60c3c861  fixture/candidate.tar.gz' | sha256sum -c -
+          mkdir candidate output
+          tar -xzf fixture/candidate.tar.gz -C candidate
+          cp fixture/source-product-commit.txt output/
+          node --version > output/node-version.txt
+          google-chrome --version > output/chrome-version.txt
+          sha256sum fixture/candidate.tar.gz > output/archive-sha256.txt
+          node -e "console.log(require('./candidate/github/bundle').codeDigest())" > output/engine-digest.txt
+      - name: Complete CLI and report regression
+        working-directory: candidate
+        run: npm test > ../output/cli-tests.txt 2>&1
+      - name: Complete GitHub model and reconstruction regression
+        working-directory: candidate
+        env:
+          MP_SOURCE_COMMIT: 7492959d9ae5ef5bb9c889edb3bcfe3b410d8f69
+          MP_MODEL_REPORT: ../output/service-model.json
+        run: npm run test:github > ../output/github-tests.txt 2>&1
+      - name: Complete factory journey with real Chromium and Git
+        working-directory: candidate
+        run: |
+          export CHROME_BIN="$(command -v google-chrome)"
+          npm run test:factory > ../output/factory-tests.txt 2>&1
+      - name: Recheck exact retained static Git runtime and full reconstruction suite
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download 35489128375 --repo ohcaygo/merge-proof-l3-lab-classic -n l3-static-runtime --dir runtime
+          docker run --rm -v "$PWD/candidate:/candidate:ro" -v "$PWD/runtime:/runtime:ro" -v "$PWD/output:/out" alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8 sh -ec '
+            mkdir -p /opt
+            tar -xzf /runtime/git-runtime.tar.gz -C /opt
+            echo "3d2b9bc579af799be2f88ed81c01cec14e4f469dbf6fef377322c29710e66d2b  /opt/merge-proof-git/bin/git" | sha256sum -c -
+            apk add --no-cache nodejs
+            ln -sf /opt/merge-proof-git/bin/git /usr/bin/git
+            cp -a /candidate /corpus
+            cd /corpus
+            node --test github/test/chain.test.js > /out/static-reconstruction-tests.txt 2>&1
+          '
+      - name: Preserve exact candidate acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: l3-addendum-acceptance
+          path: output/
+          retention-days: 7
