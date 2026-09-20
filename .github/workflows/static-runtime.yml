@@ -1,0 +1,40 @@
+name: L3 static Git acceptance
+on:
+  push:
+    branches: [l3-static-runtime-20260920]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Fetch exact synthetic fixture
+        run: |
+          git init fixture
+          git -C fixture remote add origin https://github.com/ohcaygo/merge-proof-l3-lab-classic.git
+          git -C fixture fetch origin "$GITHUB_SHA"
+          git -C fixture checkout --detach FETCH_HEAD
+          mkdir output
+      - name: Build static runtime and execute published reconstruction corpus
+        run: |
+          docker run --rm -v "$PWD/fixture:/fixture:ro" -v "$PWD/output:/out" alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8 sh -ec '
+            sh /fixture/build-static-git.sh /out
+            apk add --no-cache nodejs
+            /opt/merge-proof-git/bin/git init /corpus
+            /opt/merge-proof-git/bin/git -C /corpus remote add origin https://github.com/ohcaygo/merge-proof.git
+            /opt/merge-proof-git/bin/git -C /corpus fetch --depth=1 origin e93c94b36433e195fb84f4b7b96ea6b8dc93873e
+            /opt/merge-proof-git/bin/git -C /corpus checkout --detach FETCH_HEAD
+            ln -sf /opt/merge-proof-git/bin/git /usr/bin/git
+            cd /corpus
+            node --test github/test/chain.test.js > /out/reconstruction-tests.txt 2>&1
+            cat /out/reconstruction-tests.txt
+          '
+      - name: Preserve runtime and test evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: l3-static-runtime
+          path: output/
+          retention-days: 7
