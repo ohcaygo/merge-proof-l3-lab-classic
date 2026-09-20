@@ -18,7 +18,7 @@ tar -xf git.tar.xz
 cd git-2.50.1
 make -j2 prefix=/opt/merge-proof-git CFLAGS='-O2 -fno-omit-frame-pointer' LDFLAGS=-static \
   CURL_LDFLAGS="$(pkg-config --libs --static libcurl)" NO_GETTEXT=YesPlease NO_TCLTK=YesPlease \
-  NO_PERL=YesPlease NO_PYTHON=YesPlease NO_EXPAT=YesPlease all install
+  NO_REGEX=NeedsStartEnd NO_PERL=YesPlease NO_PYTHON=YesPlease NO_EXPAT=YesPlease all install
 for TASK_BINARY in /opt/merge-proof-git/bin/git /opt/merge-proof-git/libexec/git-core/git-remote-https; do
   file "$TASK_BINARY"
   if readelf -l "$TASK_BINARY" | grep -q INTERP; then exit 3; fi
