@@ -1,0 +1,48 @@
+name: L3 static queue reconstruction recheck
+on:
+  push:
+    branches: [l3-static-queue-recheck-20260920]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch exact owned fixture and retained tested runtime
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init fixture
+          git -C fixture remote add origin https://github.com/ohcaygo/merge-proof-l3-lab-classic.git
+          git -C fixture fetch origin "$GITHUB_SHA"
+          git -C fixture checkout --detach FETCH_HEAD
+          gh run download 35489128375 --repo ohcaygo/merge-proof-l3-lab-classic -n l3-static-runtime --dir runtime
+          mkdir output
+      - name: Reuse exact static binary and test current reconstruction source
+        run: |
+          docker run --rm -v "$PWD/fixture:/fixture:ro" -v "$PWD/runtime:/runtime:ro" -v "$PWD/output:/out" alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8 sh -ec '
+            mkdir -p /opt
+            tar -xzf /runtime/git-runtime.tar.gz -C /opt
+            echo "3d2b9bc579af799be2f88ed81c01cec14e4f469dbf6fef377322c29710e66d2b  /opt/merge-proof-git/bin/git" | sha256sum -c -
+            apk add --no-cache nodejs
+            /opt/merge-proof-git/bin/git init /corpus
+            /opt/merge-proof-git/bin/git -C /corpus remote add origin https://github.com/ohcaygo/merge-proof.git
+            /opt/merge-proof-git/bin/git -C /corpus fetch --depth=1 origin e93c94b36433e195fb84f4b7b96ea6b8dc93873e
+            /opt/merge-proof-git/bin/git -C /corpus checkout --detach FETCH_HEAD
+            cp /fixture/reconstruct.js /corpus/github/reconstruct.js
+            cp /fixture/chain.test.js /corpus/github/test/chain.test.js
+            ln -sf /opt/merge-proof-git/bin/git /usr/bin/git
+            cd /corpus
+            sha256sum github/reconstruct.js github/test/chain.test.js > /out/source-sha256.txt
+            node --test github/test/chain.test.js > /out/reconstruction-tests.txt 2>&1
+            cat /out/reconstruction-tests.txt
+          '
+      - name: Preserve evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: l3-static-queue-recheck
+          path: output/
+          retention-days: 7
