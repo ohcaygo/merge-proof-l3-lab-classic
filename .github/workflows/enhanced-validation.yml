@@ -1,19 +1,19 @@
-name: Exact L3 Enhanced candidate acceptance
+name: Exact Enhanced Linux identity and static Git acceptance
 on:
   push:
-    branches: [l3-enhanced-validation-4f14f77]
+    branches: [l3-enhanced-os-4f14f77]
 permissions:
   contents: read
   actions: read
 jobs:
-  complete:
+  operating-system:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.12.0'
-      - name: Fetch the owned fixture and verify exact candidate archive
+      - name: Restore exact already-tested source archive
         run: |
           git init fixture
           git -C fixture remote add origin https://github.com/ohcaygo/merge-proof-l3-lab-classic.git
@@ -23,28 +23,17 @@ jobs:
           mkdir candidate output
           tar -xzf fixture/candidate.tar.gz -C candidate
           cp fixture/source-product-commit.txt output/
-          node --version > output/node-version.txt
-          google-chrome --version > output/chrome-version.txt
-          sha256sum fixture/candidate.tar.gz > output/archive-sha256.txt
-          node -e "console.log(require('./candidate/github/bundle').codeDigest())" > output/engine-digest.txt
-      - name: Complete CLI and report regression
-        working-directory: candidate
-        run: npm test > ../output/cli-tests.txt 2>&1
-      - name: Complete GitHub model and reconstruction regression
-        working-directory: candidate
-        env:
-          MP_SOURCE_COMMIT: 4f14f772838e9a5e40fd401c388efd7d11010053
-          MP_MODEL_REPORT: ../output/service-model.json
-        run: npm run test:github > ../output/github-tests.txt 2>&1
-      - name: Complete factory journey with real Chromium and Git
-        working-directory: candidate
+          namei -l "$PWD/candidate/github/policy-broker.js" > output/runner-path-permissions.txt
+          sudo -u '#65533' test -r "$PWD/candidate/github/policy-broker.js" && echo RUNNER_PATH_READABLE > output/runner-path-access.txt || echo RUNNER_PATH_NOT_READABLE > output/runner-path-access.txt
+      - name: Stage immutable source in the intended root-owned public-code layout
         run: |
-          export CHROME_BIN="$(command -v google-chrome)"
-          timeout --kill-after=10s 150s npm run test:factory > ../output/factory-tests.txt 2>&1
-      - name: Real Linux separate-UID companion boundary
-        working-directory: candidate
-        run: sudo "$(command -v node)" github/operations/isolation-acceptance.js > ../output/linux-uid-isolation.json
-      - name: Recheck exact retained static Git runtime and full reconstruction suite
+          sudo cp -a candidate /opt/merge-proof-isolation-candidate
+          sudo chown -R root:root /opt/merge-proof-isolation-candidate
+          sudo chmod -R a+rX /opt/merge-proof-isolation-candidate
+          sudo -u '#65533' test -r /opt/merge-proof-isolation-candidate/github/policy-broker.js
+          sudo "$(command -v node)" /opt/merge-proof-isolation-candidate/github/operations/isolation-acceptance.js > output/linux-uid-isolation.json
+      - name: Verify retained static Git runtime and complete reconstruction suite
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -53,16 +42,16 @@ jobs:
             mkdir -p /opt
             tar -xzf /runtime/git-runtime.tar.gz -C /opt
             echo "3d2b9bc579af799be2f88ed81c01cec14e4f469dbf6fef377322c29710e66d2b  /opt/merge-proof-git/bin/git" | sha256sum -c -
+            echo "f5b324107f840a22e82440e0c1bbeb6687da6f481142d5fec6fbc03085478c23  /opt/merge-proof-git/libexec/git-core/git-remote-https" | sha256sum -c -
             apk add --no-cache nodejs
             ln -sf /opt/merge-proof-git/bin/git /usr/bin/git
             cp -a /candidate /corpus
             cd /corpus
             node --test github/test/chain.test.js > /out/static-reconstruction-tests.txt 2>&1
           '
-      - name: Preserve exact candidate acceptance evidence
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: l3-enhanced-acceptance
+          name: l3-enhanced-os-acceptance
           path: output/
           retention-days: 7
