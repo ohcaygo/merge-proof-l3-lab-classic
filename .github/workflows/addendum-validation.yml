@@ -1,7 +1,7 @@
-name: Exact L3 addendum candidate acceptance
+name: L3 factory diagnostic
 on:
   push:
-    branches: [l3-addendum-validation-7492959]
+    branches: [l3-addendum-factory-diagnostic-7492959]
 permissions:
   contents: read
   actions: read
@@ -24,21 +24,14 @@ jobs:
           google-chrome --version > output/chrome-version.txt
           sha256sum fixture/candidate.tar.gz > output/archive-sha256.txt
           node -e "console.log(require('./candidate/github/bundle').codeDigest())" > output/engine-digest.txt
-      - name: Complete CLI and report regression
-        working-directory: candidate
-        run: npm test > ../output/cli-tests.txt 2>&1
-      - name: Complete GitHub model and reconstruction regression
-        working-directory: candidate
-        env:
-          MP_SOURCE_COMMIT: 7492959d9ae5ef5bb9c889edb3bcfe3b410d8f69
-          MP_MODEL_REPORT: ../output/service-model.json
-        run: npm run test:github > ../output/github-tests.txt 2>&1
       - name: Complete factory journey with real Chromium and Git
         working-directory: candidate
         run: |
           export CHROME_BIN="$(command -v google-chrome)"
-          npm run test:factory > ../output/factory-tests.txt 2>&1
+          (sleep 45; ps -e -o pid,ppid,pgid,stat,comm > ../output/processes.txt; find /tmp -name report.pdf -printf '%p %s bytes\n' > ../output/pdfs.txt) &
+          timeout --kill-after=10s 150s npm run test:factory > ../output/factory-tests.txt 2>&1
       - name: Recheck exact retained static Git runtime and full reconstruction suite
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
